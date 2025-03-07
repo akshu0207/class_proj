@@ -1,1 +1,1 @@
-This is a project specifically designed for patient to have full control over their health reports and can decide who can have access to it. this involves both patient interface and provider interface. this is a complete frontend project.
+This is a project specifically designed for patient to have full control over their health reports and can decide who can have access to it. this involves both patient interface and provider interface. this is a complete frontend project. This project is still under development.
