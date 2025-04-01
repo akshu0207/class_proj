@@ -1,13 +1,40 @@
-IF dw_detail.update() =1 AND dw_master.update() =1 THEN
-	   COMMIT using SQLCA;
-	    MessageBox("Save","Save succeeded")
-	    this.event ue_retrieve()
+long ll_rv_master, ll_rv_detail
+boolean lb_changes_master, lb_changes_detail
+
+// Accept text to ensure all changes are captured
+dw_detail.AcceptText()
+dw_master.AcceptText()
+
+// Check if there are changes in dw_detail
+IF dw_detail.ModifiedCount() > 0 OR dw_detail.DeletedCount() > 0 THEN
+    lb_changes_detail = TRUE
+END IF
+
+// Check if there are changes in dw_master
+IF dw_master.ModifiedCount() > 0 OR dw_master.DeletedCount() > 0 THEN
+    lb_changes_master = TRUE
+END IF
+
+// Update only if changes exist
+IF lb_changes_detail THEN
+    ll_rv_detail = dw_detail.Update()
+END IF
+
+IF lb_changes_master THEN
+    ll_rv_master = dw_master.Update()
+END IF
+
+// Check update results
+IF (NOT lb_changes_detail OR ll_rv_detail = 1) AND (NOT lb_changes_master OR ll_rv_master = 1) THEN
+    COMMIT using SQLCA;
+    MessageBox("Save", "Save succeeded")
+    this.event ue_retrieve()
 ELSE
-	     if sqlca.sqlcode <> 0 then
-	        messagebox("error","ID already exists")
-         else
-	        messagebox("error","update failed. sqlcode: " + string(sqlca.sqlcode))
-	     end if
-	     rollback using sqlca;
-	     return
+    IF sqlca.sqlcode <> 0 THEN
+        MessageBox("Error", "ID already exists")
+    ELSE
+        MessageBox("Error", "Update failed. SQLCode: " + String(sqlca.sqlcode))
+    END IF
+    ROLLBACK using SQLCA;
+    RETURN
 END IF
