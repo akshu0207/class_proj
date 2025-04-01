@@ -1,44 +1,70 @@
-string ls_customers, ll_list, the_id, the_first_name, the_last_name, the_city, the_state
-long ll_row, ll_foundrow, ll_find, ll_row_update, ll_cnt, ll_rv
- 
-ll_row = dw_master.RowCount()
- 
-ls_customers = Trim(sle_search.Text)
- 
-ll_foundrow = dw_master.Find( &
-      "first_name = '" + ls_customers + "'", 1, ll_row)
-IF ll_foundrow > 0 THEN
-      dw_master.ScrollToRow(ll_foundrow)
-	  dw_master.SetRowFocusIndicator(Hand!)
-	  dw_detail.setitem(1,"id",dw_master.GetItemNumber(ll_foundrow,"id"))
-	  dw_detail.setitem(1,"first_name",dw_master.GetItemstring(ll_foundrow,"first_name"))
-	  dw_detail.setitem(1,"last_name",dw_master.GetItemstring(ll_foundrow,"last_name"))
-	  dw_detail.setitem(1,"city",dw_master.GetItemstring(ll_foundrow,"city"))
-	  dw_detail.setitem(1,"state",dw_master.GetItemstring(ll_foundrow,"state"))
-ELSE
-      MessageBox("Not Found", "No row found.")
-	  ll_row = dw_master.insertrow(0)
-	  if ll_row_update > 0 then
-		ll_cnt = 0
-		do
-			ll_cnt++
-	  ll_find= dw_master.find("id = "+string(the_id)+" and first_name = "+string(the_first_name)+" and last_name = "+string(the_last_name)+" and city = "+string(the_city)+ " and state =  '"+ls_customers+"'",1,dw_master.rowcount())
-	  dw_master.setitem(ll_row,"id",dw_detail.getitemstring(ll_cnt,"id"))
-	  dw_master.setitem(ll_row,"first_name",dw_detail.getitemstring(ll_cnt,"first_name"))
-	  dw_master.setitem(ll_row,"last_name",dw_detail.getitemstring(ll_cnt,"last_name"))
-	  dw_master.setitem(ll_row,"city",dw_detail.getitemstring(ll_cnt,"city"))
-	  dw_master.setitem(ll_row,"state",dw_detail.getitemstring(ll_cnt,"state"))
-	  loop until ll_cnt >= dw_detail.rowcount( )
-			
-		dw_master.accepttext( )
-		ll_rv = dw_master.update(true,false)
-			
-		if ll_rv = 1 then
-			commit using sqlca;
-			Messagebox("Save Record","Update Success")
-		else
-			ROLLBACK using sqlca;
-			Messagebox("Save Record","Update Failure")
-		end if
+string ls_search, ls_search_column, ls_search_condition
+long ll_row, ll_foundrow, ll_rv
+integer li_col_count, i
+string ls_col_name
+any la_old_value, la_new_value
+boolean lb_changes = FALSE
+
+// Get search input and column name (Assuming you have a dropdown or user input for column selection)
+ls_search = Trim(sle_search.Text)
+ls_search_column = Trim(ddlb_search_column.Text)  // Dropdown for selecting column (id, first_name, etc.)
+
+// Validate search column
+IF ls_search_column = "" THEN
+    MessageBox("Error", "Please select a column to search.")
+    RETURN
 END IF
-end if
+
+// Build search condition dynamically
+ls_search_condition = ls_search_column + " = '" + ls_search + "'"
+
+// Get total number of rows in dw_master
+ll_row = dw_master.RowCount()
+
+// Find the existing row in dw_master
+ll_foundrow = dw_master.Find(ls_search_condition, 1, ll_row)
+
+IF ll_foundrow > 0 THEN
+    // Scroll to found row and highlight it
+    dw_master.ScrollToRow(ll_foundrow)
+    dw_master.SetRowFocusIndicator(Hand!)
+
+    // Get column count in dw_master
+    li_col_count = dw_master.Describe("DataWindow.Column.Count")
+
+    FOR i = 1 TO li_col_count
+        ls_col_name = dw_master.Describe("#" + String(i) + ".Name")
+
+        // Check if the column is modified
+        IF dw_master.GetItemStatus(ll_foundrow, ls_col_name) = DataModified! THEN
+            // Get old and new values
+            la_old_value = dw_master.GetItem(ll_foundrow, ls_col_name)
+            la_new_value = dw_master.GetItem(ll_foundrow, ls_col_name, Primary!)
+
+            // Update only if value has changed
+            IF NOT IsNull(la_new_value) AND la_old_value <> la_new_value THEN
+                dw_master.SetItem(ll_foundrow, ls_col_name, la_new_value)
+                lb_changes = TRUE
+            END IF
+        END IF
+    NEXT
+
+    // Only commit if changes exist
+    IF lb_changes THEN
+        dw_master.AcceptText()
+        ll_rv = dw_master.Update(True, False)
+
+        IF ll_rv = 1 THEN
+            COMMIT USING SQLCA;
+            MessageBox("Save Record", "Update Successful")
+        ELSE
+            ROLLBACK USING SQLCA;
+            MessageBox("Save Record", "Update Failed")
+        END IF
+    ELSE
+        MessageBox("No Changes", "No modifications detected.")
+    END IF
+
+ELSE
+    MessageBox("Not Found", "No row found.")
+END IF
