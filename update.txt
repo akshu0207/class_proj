@@ -1,0 +1,13 @@
+IF dw_detail.update() =1 AND dw_master.update() =1 THEN
+	   COMMIT using SQLCA;
+	    MessageBox("Save","Save succeeded")
+	    this.event ue_retrieve()
+ELSE
+	     if sqlca.sqlcode <> 0 then
+	        messagebox("error","ID already exists")
+         else
+	        messagebox("error","update failed. sqlcode: " + string(sqlca.sqlcode))
+	     end if
+	     rollback using sqlca;
+	     return
+END IF
