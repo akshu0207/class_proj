@@ -1,0 +1,34 @@
+sqlca.autocommit=TRUE
+string ERRORS, sql_syntax
+string presentation_str, dwsyntax_str
+ 
+sql_syntax = "SELECT id,"&
++ "first_name,"&
+   + "last_name, "&
+	   + "city,"&
+   + "state FROM customers"
+ 
+presentation_str = "style(type=grid)"
+
+dwsyntax_str = SQLCA.SyntaxFromSQL(sql_syntax, &
+   presentation_str, ERRORS)
+	
+IF Len(ERRORS) > 0 THEN
+   MessageBox("Caution", &
+   "SyntaxFromSQL caused these errors: " + ERRORS)
+   RETURN
+END IF
+ 
+dw_master.Create( dwsyntax_str, ERRORS)
+dw_master.AcceptText()
+
+IF Len(ERRORS) > 0 THEN
+   MessageBox("Caution", &
+      "Create cause these errors: " + ERRORS)
+   RETURN
+END IF
+dw_master.SetTransObject(SQLCA)
+dw_detail.SetTransObject(SQLCA)
+this.EVENT ue_retrieve()
+dw_master.Retrieve()
+sqlca.autocommit=FALSE
