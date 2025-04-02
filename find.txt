@@ -1,53 +1,94 @@
-string ls_customers, ll_list, the_id, the_first_name, the_last_name, the_city, the_state
-integer done
-long ll_row, ll_foundrow, ll_find, ll_row_update, ll_cnt, ll_rv
- 
-ll_row = dw_master.RowCount()
- 
-ls_customers = Trim(sle_search.Text)
- 
-ll_foundrow = dw_master.Find( &
-      "first_name = '" + ls_customers + "'", 1, ll_row)
-IF ll_foundrow > 0 THEN
-      dw_master.ScrollToRow(ll_foundrow)
-	  dw_master.SetRowFocusIndicator(Hand!)
-	  dw_detail.setitem(1,"id",dw_master.GetItemNumber(ll_foundrow,"id"))
-	  dw_detail.setitem(1,"first_name",dw_master.GetItemstring(ll_foundrow,"first_name"))
-	  dw_detail.setitem(1,"last_name",dw_master.GetItemstring(ll_foundrow,"last_name"))
-	  dw_detail.setitem(1,"city",dw_master.GetItemstring(ll_foundrow,"city"))
-	  dw_detail.setitem(1,"state",dw_master.GetItemstring(ll_foundrow,"state"))
-ELSE
-      MessageBox("Not Found", "No row found.")
-	  done = messagebox("insert","insert a new row?", Exclamation!, OKCancel!, 2)
-	  IF done = 1 THEN
-		 ll_row = dw_master.insertrow(0)
-       END IF
+string ls_customers
+integer li_decision
+long ll_foundrow, ll_rv
+boolean lb_modified = FALSE  
 
-	  ll_row = dw_master.insertrow(0) 
-	  dw_detail.Reset()
-       dw_detail.InsertRow(0)
-       dw_detail.SetFocus()
-	  if ll_row_update > 0 then
-		ll_cnt = 0
-		do
-			ll_cnt++
-	  ll_find= dw_master.find("id = "+string(the_id)+" and first_name = "+string(the_first_name)+" and last_name = "+string(the_last_name)+" and city = "+string(the_city)+ " and state =  '"+ls_customers+"'",1,dw_master.rowcount())
-	  dw_master.setitem(ll_row,"id",the_id)
-	  dw_master.setitem(ll_row,"first_name",dw_detail.getitemstring(ll_cnt,"first_name"))
-	  dw_master.setitem(ll_row,"last_name",the_last_name)
-	  dw_master.setitem(ll_row,"city",the_city)
-	  dw_master.setitem(ll_row,"state",the_state)
-	  loop until ll_cnt >= dw_detail.rowcount( )
-       
-	  dw_master.accepttext( )
-	 
-	 ll_rv = dw_master.update(true,false)	
-		if ll_rv = 1 then
-			commit using sqlca;
-			Messagebox("Save Record","Update Success")
-		else
-			ROLLBACK using sqlca;
-			Messagebox("Save Record","Update Failure")
-		end if
+// Get search text
+ls_customers = Trim(sle_search.Text)
+
+// Search for a row based on any column
+ll_foundrow = dw_master.Find( &
+    "id = '" + ls_customers + "' OR " + 
+    "first_name = '" + ls_customers + "' OR " + 
+    "last_name = '" + ls_customers + "' OR " + 
+    "city = '" + ls_customers + "' OR " + 
+    "state = '" + ls_customers + "'", 1, dw_master.RowCount())
+
+IF ll_foundrow > 0 THEN
+    // Scroll and highlight
+    dw_master.ScrollToRow(ll_foundrow)
+    dw_master.SetRowFocusIndicator(Hand!)
+
+    // Copy to dw_detail for modification
+    dw_detail.Reset()
+    dw_detail.InsertRow(1)
+    dw_detail.SetItem(1, "id", dw_master.GetItemNumber(ll_foundrow, "id"))
+    dw_detail.SetItem(1, "first_name", dw_master.GetItemString(ll_foundrow, "first_name"))
+    dw_detail.SetItem(1, "last_name", dw_master.GetItemString(ll_foundrow, "last_name"))
+    dw_detail.SetItem(1, "city", dw_master.GetItemString(ll_foundrow, "city"))
+    dw_detail.SetItem(1, "state", dw_master.GetItemString(ll_foundrow, "state"))
+
+    dw_detail.SetFocus()
+ELSE
+    // Ask user to insert a new row
+    li_decision = MessageBox("Insert", "No record found. Do you want to add a new row?", Question!, YesNo!, 2)
+
+    IF li_decision = 1 THEN
+        // Insert new row in dw_master
+        long ll_newrow = dw_master.InsertRow(0)
+        
+        // Insert new row in dw_detail for editing
+        dw_detail.Reset()
+        dw_detail.InsertRow(1)
+        dw_detail.SetFocus()
+    ELSE
+        MessageBox("Cancel", "No changes were made.")
+        RETURN
+    END IF
 END IF
-end if
+
+// Accept text input
+dw_detail.AcceptText()
+
+// Check for modifications
+IF dw_detail.ModifiedCount() > 0 THEN
+    lb_modified = TRUE  
+
+    // Update only modified fields
+    IF ll_foundrow > 0 THEN
+        IF dw_detail.GetItemString(1, "first_name") <> dw_master.GetItemString(ll_foundrow, "first_name") THEN
+            dw_master.SetItem(ll_foundrow, "first_name", dw_detail.GetItemString(1, "first_name"))
+        END IF
+        IF dw_detail.GetItemString(1, "last_name") <> dw_master.GetItemString(ll_foundrow, "last_name") THEN
+            dw_master.SetItem(ll_foundrow, "last_name", dw_detail.GetItemString(1, "last_name"))
+        END IF
+        IF dw_detail.GetItemString(1, "city") <> dw_master.GetItemString(ll_foundrow, "city") THEN
+            dw_master.SetItem(ll_foundrow, "city", dw_detail.GetItemString(1, "city"))
+        END IF
+        IF dw_detail.GetItemString(1, "state") <> dw_master.GetItemString(ll_foundrow, "state") THEN
+            dw_master.SetItem(ll_foundrow, "state", dw_detail.GetItemString(1, "state"))
+        END IF
+    ELSE
+        // Set values for the new row in dw_master
+        dw_master.SetItem(ll_newrow, "first_name", dw_detail.GetItemString(1, "first_name"))
+        dw_master.SetItem(ll_newrow, "last_name", dw_detail.GetItemString(1, "last_name"))
+        dw_master.SetItem(ll_newrow, "city", dw_detail.GetItemString(1, "city"))
+        dw_master.SetItem(ll_newrow, "state", dw_detail.GetItemString(1, "state"))
+    END IF
+END IF
+
+// Update only if modifications were made
+IF lb_modified THEN
+    dw_master.AcceptText()
+    ll_rv = dw_master.Update()
+
+    IF ll_rv = 1 THEN
+        COMMIT USING SQLCA
+        MessageBox("Save Record", "Update Successful")
+    ELSE
+        ROLLBACK USING SQLCA
+        MessageBox("Save Record", "Update Failed. SQLCode: " + String(SQLCA.SQLCode))
+    END IF
+ELSE
+    MessageBox("No Changes", "No modifications were made.")
+END IF
