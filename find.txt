@@ -1,4 +1,5 @@
 string ls_customers, ll_list, the_id, the_first_name, the_last_name, the_city, the_state
+integer done
 long ll_row, ll_foundrow, ll_find, ll_row_update, ll_cnt, ll_rv
  
 ll_row = dw_master.RowCount()
@@ -17,22 +18,30 @@ IF ll_foundrow > 0 THEN
 	  dw_detail.setitem(1,"state",dw_master.GetItemstring(ll_foundrow,"state"))
 ELSE
       MessageBox("Not Found", "No row found.")
-	  ll_row = dw_master.insertrow(0)
+	  done = messagebox("insert","insert a new row?", Exclamation!, OKCancel!, 2)
+	  IF done = 1 THEN
+		 ll_row = dw_master.insertrow(0)
+       END IF
+
+	  ll_row = dw_master.insertrow(0) 
+	  dw_detail.Reset()
+       dw_detail.InsertRow(0)
+       dw_detail.SetFocus()
 	  if ll_row_update > 0 then
 		ll_cnt = 0
 		do
 			ll_cnt++
 	  ll_find= dw_master.find("id = "+string(the_id)+" and first_name = "+string(the_first_name)+" and last_name = "+string(the_last_name)+" and city = "+string(the_city)+ " and state =  '"+ls_customers+"'",1,dw_master.rowcount())
-	  dw_master.setitem(ll_row,"id",dw_detail.getitemstring(ll_cnt,"id"))
+	  dw_master.setitem(ll_row,"id",the_id)
 	  dw_master.setitem(ll_row,"first_name",dw_detail.getitemstring(ll_cnt,"first_name"))
-	  dw_master.setitem(ll_row,"last_name",dw_detail.getitemstring(ll_cnt,"last_name"))
-	  dw_master.setitem(ll_row,"city",dw_detail.getitemstring(ll_cnt,"city"))
-	  dw_master.setitem(ll_row,"state",dw_detail.getitemstring(ll_cnt,"state"))
+	  dw_master.setitem(ll_row,"last_name",the_last_name)
+	  dw_master.setitem(ll_row,"city",the_city)
+	  dw_master.setitem(ll_row,"state",the_state)
 	  loop until ll_cnt >= dw_detail.rowcount( )
-			
-		dw_master.accepttext( )
-		ll_rv = dw_master.update(true,false)
-			
+       
+	  dw_master.accepttext( )
+	 
+	 ll_rv = dw_master.update(true,false)	
 		if ll_rv = 1 then
 			commit using sqlca;
 			Messagebox("Save Record","Update Success")
