@@ -1,33 +1,32 @@
-sqlca.autocommit = TRUE
 string ERRORS, sql_syntax
 string presentation_str, dwsyntax_str
+//sql_syntax = "SELECT id,"&
+//+ "first_name,"&
+//   + "last_name, "&
+//	   + "city,"&
+//   + "state FROM customers"
+sql_syntax =  "SELECT id, first_name, last_name, city, state FROM customers ORDER BY id ASC"
+presentation_str = "style(type=grid)"
 
-// Sort by ID in ascending order
-sql_syntax = "SELECT id, first_name, last_name, city, state FROM customers ORDER BY id ASC"
-
-// Set alignment to center and type to grid
-presentation_str = "style(type=grid alignment=center)"
-
-dwsyntax_str = SQLCA.SyntaxFromSQL(sql_syntax, presentation_str, ERRORS)
-
+dwsyntax_str = SQLCA.SyntaxFromSQL(sql_syntax, &
+   presentation_str, ERRORS)
+	
 IF Len(ERRORS) > 0 THEN
-    MessageBox("Caution", "SyntaxFromSQL caused these errors: " + ERRORS)
-    RETURN
+   MessageBox("Caution", &
+   "SyntaxFromSQL caused these errors: " + ERRORS)
+   RETURN
 END IF
-
-dw_master.Create(dwsyntax_str, ERRORS)
+ 
+dw_master.Create( dwsyntax_str, ERRORS)
 dw_master.AcceptText()
 
 IF Len(ERRORS) > 0 THEN
-    MessageBox("Caution", "Create caused these errors: " + ERRORS)
-    RETURN
+   MessageBox("Caution", &
+      "Create cause these errors: " + ERRORS)
+   RETURN
 END IF
-
-// Set transaction objects
 dw_master.SetTransObject(SQLCA)
 dw_detail.SetTransObject(SQLCA)
-
 this.EVENT ue_retrieve()
 dw_master.Retrieve()
-
-sqlca.autocommit = FALSE
+sqlca.autocommit=FALSE
