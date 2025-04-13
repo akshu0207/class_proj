@@ -1,0 +1,38 @@
+dw_master.AcceptText()
+
+long rowCount, i
+string val_id, val_fname, val_lname, val_city, val_state
+
+rowCount = dw_master.RowCount()
+
+FOR i = 1 TO rowCount
+   val_id = dw_master.GetItemString(i, "id")
+   val_fname = Trim(dw_master.GetItemString(i, "first_name"))
+   val_lname = Trim(dw_master.GetItemString(i, "last_name"))
+   val_city = Trim(dw_master.GetItemString(i, "city"))
+   val_state = Trim(dw_master.GetItemString(i, "state"))
+
+   // Check if ID is a valid integer
+   IF NOT IsNumber(val_id) THEN
+      MessageBox("Validation Failed", "Row " + String(i) + ": 'id' must be an integer.")
+      dw_master.SetRow(i)
+      RETURN
+   END IF
+
+   // Check if other fields are non-empty strings
+   IF val_fname = "" OR val_lname = "" OR val_city = "" OR val_state = "" THEN
+      MessageBox("Validation Failed", "Row " + String(i) + ": All fields except 'id' must be non-empty.")
+      dw_master.SetRow(i)
+      RETURN
+   END IF
+NEXT
+
+// If validation passes, continue with update
+IF dw_master.Update() = -1 THEN
+   MessageBox("Error", "Update failed: " + SQLCA.SQLERRTEXT)
+   RETURN
+ELSE
+   COMMIT USING SQLCA;
+   MessageBox("Success", "Data saved successfully!")
+END IF
+
