@@ -1,52 +1,54 @@
-// Example: Clicked event of btn_report
-string ERRORS, sql_syntax, presentation_str, dwsyntax_str
-string selected_cols, layout_style, where_clause
+string ls_columns, ls_filter, ls_layout, ls_sql, ls_presentation, ls_dwsyntax, ls_errors
+long ll_rows
 
-// 🧠 1. Get user inputs
-selected_cols = sle_cols.Text
-layout_style  = ddlb_layout.Text
-where_clause  = sle_filter.Text
+// 1. Get user inputs
+ls_columns = TRIM(sle_columns.Text)     // e.g., "customer_id, customer_name"
+ls_filter  = TRIM(sle_filter.Text)      // e.g., "city = 'New York'"
+ls_layout  = Lower(TRIM(sle_layout.Text)) // e.g., "grid", "tabular", "freeform"
 
-// Validate inputs
-IF selected_cols = "" THEN
-   MessageBox("Error", "Please enter column names.")
-   RETURN
+// 2. Validate columns
+IF ls_columns = "" THEN
+    MessageBox("Error", "Please enter column names.")
+    RETURN
 END IF
 
-IF layout_style = "" THEN
-   layout_style = "grid"  // default
+// 3. Set default layout if none entered
+IF ls_layout = "" THEN
+    ls_layout = "grid"
 END IF
 
-// 🛠️ 2. Build dynamic SQL
-sql_syntax = "SELECT " + selected_cols + " FROM customers"
+// 4. Build SQL
+ls_sql = "SELECT " + ls_columns + " FROM customers"
+IF ls_filter <> "" THEN
+    ls_sql += " WHERE " + ls_filter
+END IF
+ls_sql += " ORDER BY 1"
 
-IF Trim(where_clause) <> "" THEN
-   sql_syntax += " WHERE " + where_clause
+// 5. Create presentation layout string
+ls_presentation = "style(type=" + ls_layout + ")"
+
+// 6. Generate DataWindow syntax
+ls_dwsyntax = SQLCA.SyntaxFromSQL(ls_sql, ls_presentation, ls_errors)
+
+IF Len(ls_errors) > 0 OR ls_dwsyntax = "" THEN
+    MessageBox("Syntax Error", ls_errors)
+    RETURN
 END IF
 
-sql_syntax += " ORDER BY id"
-
-// 🧱 3. Build presentation string
-presentation_str = "style(type=" + layout_style + ")"
-
-// 🏗️ 4. Generate dynamic DataWindow syntax
-dwsyntax_str = SQLCA.SyntaxFromSQL(sql_syntax, presentation_str, ERRORS)
-
-IF Len(ERRORS) > 0 THEN
-   MessageBox("Caution", "SyntaxFromSQL Error: " + ERRORS)
-   RETURN
-END IF
-
-// 🔄 5. Create DataWindow and retrieve data
+// 7. Create and retrieve
 dw_master.Reset()
-dw_master.Create(dwsyntax_str, ERRORS)
-dw_master.AcceptText()
-
-IF Len(ERRORS) > 0 THEN
-   MessageBox("Caution", "Create Error: " + ERRORS)
-   RETURN
+IF dw_master.Create(ls_dwsyntax, ls_errors) <> 1 THEN
+    MessageBox("Create Error", ls_errors)
+    RETURN
 END IF
 
 dw_master.SetTransObject(SQLCA)
-dw_master.Retrieve()
-SQLCA.AutoCommit = FALSE
+ll_rows = dw_master.Retrieve()
+
+IF ll_rows < 0 THEN
+    MessageBox("Retrieve Error", "Failed to retrieve data.")
+ELSEIF ll_rows = 0 THEN
+    MessageBox("Notice", "No data found.")
+ELSE
+    MessageBox("Success", "Report generated successfully.")
+END IF
