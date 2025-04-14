@@ -1,38 +1,45 @@
-dw_master.AcceptText()
+// Declare necessary variables
+long ll_foundrow, ll_rv
+boolean lb_modified = FALSE
 
-long rowCount, i
-string val_id, val_fname, val_lname, val_city, val_state
+// Get the selected row from the master DataWindow
+ll_foundrow = dw_master.GetRow()
 
-rowCount = dw_master.RowCount()
+// Check if there are any modified rows in the detail DataWindow
+IF dw_detail.ModifiedCount() > 0 THEN
+    lb_modified = TRUE
 
-FOR i = 1 TO rowCount
-   val_id = dw_master.GetItemString(i, "id")
-   val_fname = Trim(dw_master.GetItemString(i, "first_name"))
-   val_lname = Trim(dw_master.GetItemString(i, "last_name"))
-   val_city = Trim(dw_master.GetItemString(i, "city"))
-   val_state = Trim(dw_master.GetItemString(i, "state"))
-
-   // Check if ID is a valid integer
-   IF NOT IsNumber(val_id) THEN
-      MessageBox("Validation Failed", "Row " + String(i) + ": 'id' must be an integer.")
-      dw_master.SetRow(i)
-      RETURN
-   END IF
-
-   // Check if other fields are non-empty strings
-   IF val_fname = "" OR val_lname = "" OR val_city = "" OR val_state = "" THEN
-      MessageBox("Validation Failed", "Row " + String(i) + ": All fields except 'id' must be non-empty.")
-      dw_master.SetRow(i)
-      RETURN
-   END IF
-NEXT
-
-// If validation passes, continue with update
-IF dw_master.Update() = -1 THEN
-   MessageBox("Error", "Update failed: " + SQLCA.SQLERRTEXT)
-   RETURN
-ELSE
-   COMMIT USING SQLCA;
-   MessageBox("Success", "Data saved successfully!")
+    // Compare each column in dw_detail and update dw_master only if modified
+    IF dw_detail.GetItemString(1, "first_name") <> dw_master.GetItemString(ll_foundrow, "first_name") THEN
+        dw_master.SetItem(ll_foundrow, "first_name", dw_detail.GetItemString(1, "first_name"))
+    END IF
+    IF dw_detail.GetItemString(1, "last_name") <> dw_master.GetItemString(ll_foundrow, "last_name") THEN
+        dw_master.SetItem(ll_foundrow, "last_name", dw_detail.GetItemString(1, "last_name"))
+    END IF
+    IF dw_detail.GetItemString(1, "city") <> dw_master.GetItemString(ll_foundrow, "city") THEN
+        dw_master.SetItem(ll_foundrow, "city", dw_detail.GetItemString(1, "city"))
+    END IF
+    IF dw_detail.GetItemString(1, "state") <> dw_master.GetItemString(ll_foundrow, "state") THEN
+        dw_master.SetItem(ll_foundrow, "state", dw_detail.GetItemString(1, "state"))
+    END IF
 END IF
+
+// If data was modified, update the master DataWindow
+IF lb_modified THEN
+    dw_master.AcceptText()
+
+    // Update the master DataWindow
+    ll_rv = dw_master.Update()
+
+    IF ll_rv = 1 THEN
+        COMMIT USING SQLCA;
+        MessageBox("Update", "Update successful!")
+    ELSE
+        ROLLBACK USING SQLCA;
+        MessageBox("Update Failed", "SQL Update failed. Error: " + String(SQLCA.SQLCode))
+    END IF
+ELSE
+    MessageBox("No Changes", "No changes to update.")
+END IF
+
 
