@@ -1,54 +1,52 @@
-string ls_columns, ls_filter, ls_layout, ls_sql, ls_presentation, ls_dwsyntax, ls_errors
-long ll_rows
+string ls_table, ls_columns, ls_where, ls_sql, ls_dwsyntax
+string ls_error
+integer li_rtn
 
 // 1. Get user inputs
-ls_columns = TRIM(sle_columns.Text)     // e.g., "customer_id, customer_name"
-ls_filter  = TRIM(sle_filter.Text)      // e.g., "city = 'New York'"
-ls_layout  = Lower(TRIM(sle_layout.Text)) // e.g., "grid", "tabular", "freeform"
+ls_table   = Trim(sle_table.Text)
+ls_columns = Trim(sle_columns.Text)
+ls_where   = Trim(sle_where.Text)
 
-// 2. Validate columns
+// 2. Validate required inputs
+IF ls_table = "" THEN
+    MessageBox("Error", "Please enter a table name.")
+    RETURN
+END IF
+
 IF ls_columns = "" THEN
-    MessageBox("Error", "Please enter column names.")
+    ls_columns = "*" // Default to all columns
+END IF
+
+// 3. Build SQL query
+ls_sql = "SELECT " + ls_columns + " FROM " + ls_table
+
+IF ls_where <> "" THEN
+    ls_sql += " WHERE " + ls_where
+END IF
+
+// 4. Default layout: Grid
+string ls_layout
+ls_layout = "style(type=grid)"
+
+// 5. Generate DataWindow syntax
+ls_dwsyntax = SQLCA.SyntaxFromSQL(ls_sql, ls_layout, ls_table, li_rtn)
+
+IF li_rtn <> 1 OR ls_dwsyntax = "" THEN
+    MessageBox("Error", "Failed to generate DataWindow syntax. Check table, columns, or where clause.")
     RETURN
 END IF
 
-// 3. Set default layout if none entered
-IF ls_layout = "" THEN
-    ls_layout = "grid"
-END IF
-
-// 4. Build SQL
-ls_sql = "SELECT " + ls_columns + " FROM customers"
-IF ls_filter <> "" THEN
-    ls_sql += " WHERE " + ls_filter
-END IF
-ls_sql += " ORDER BY 1"
-
-// 5. Create presentation layout string
-ls_presentation = "style(type=" + ls_layout + ")"
-
-// 6. Generate DataWindow syntax
-ls_dwsyntax = SQLCA.SyntaxFromSQL(ls_sql, ls_presentation, ls_errors)
-
-IF Len(ls_errors) > 0 OR ls_dwsyntax = "" THEN
-    MessageBox("Syntax Error", ls_errors)
+// 6. Create and retrieve data in report DataWindow
+IF dw_report.Create(ls_dwsyntax, ls_sql, SQLCA) <> 1 THEN
+    MessageBox("Error", "Failed to create report.")
     RETURN
 END IF
 
-// 7. Create and retrieve
-dw_master.Reset()
-IF dw_master.Create(ls_dwsyntax, ls_errors) <> 1 THEN
-    MessageBox("Create Error", ls_errors)
+dw_report.SetTransObject(SQLCA)
+
+IF dw_report.Retrieve() < 0 THEN
+    MessageBox("Error", "Failed to retrieve data.")
     RETURN
 END IF
 
-dw_master.SetTransObject(SQLCA)
-ll_rows = dw_master.Retrieve()
-
-IF ll_rows < 0 THEN
-    MessageBox("Retrieve Error", "Failed to retrieve data.")
-ELSEIF ll_rows = 0 THEN
-    MessageBox("Notice", "No data found.")
-ELSE
-    MessageBox("Success", "Report generated successfully.")
-END IF
+MessageBox("Success", "Report generated successfully!")
